@@ -211,6 +211,9 @@ label.pack()
 speak_button = tk.Button(window, text="Speak", command=lambda: Thread(target=startListening).start())
 speak_button.pack()
 
+showreport_button=tk.Button(window,text="Show report",command=showReport)
+showreport_button.pack()
+
 # Run the GUI main loop
 wishMe()
 window.mainloop()
