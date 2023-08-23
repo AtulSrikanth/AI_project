@@ -51,63 +51,10 @@ def listenForCommand(modl):
         speak("Say that again please...")
         listenForCommand("loop")
 
-def a():
-    print("ff")
-
 def openGoogle():
-    #speak("Opening Google...")
+    speak("Opening Google...")
     webbrowser.get(chrome_path).open("https://www.google.com")
-    #insrt_table("google")
-
-def processCommand(command):
-    commands = {
-        "wikipedia": "searchWikipedia(command)",
-        "open youtube": "openYouTube()",
-        "open google": "openGoogle()"
-    }
-
-    for key in commands:
-        if (key in command):
-            eval(commands[key])
-            
-    '''if 'wikipedia' in command:
-        searchWikipedia(command)
-    elif 'open youtube' in command:
-        openYouTube()
-    elif 'open google' in command:
-        openGoogle()
-    elif 'play music' in command or 'play song' in command:
-        playMusic()
-    elif 'the time' in command:
-        getTime()
-    elif 'date' in command:
-        getDate()
-    elif 'report' in command:
-        showReport()
-    elif 'joke' in command:
-        tellJoke()
-    elif 'fact' in command:
-        tellFact()
-    elif 'exit' in command:
-        cur.close()
-        con.close()
-        exit()
-    elif 'thank you' in command:
-        speak("Welcome. Have a nice day. Bye")
-        print("Welcome. Have a nice day. Bye")
-        cur.close()
-        con.close()
-        exit()
-    else:
-        speak("Sorry, I didn't understand that.")'''
-
-processCommand("open google")
-
-def insrt_table(cmd):
-    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s",NULL);'%(datetime.datetime.now().timestamp(),cmd)
-    print(update_command)
-    cur.execute(update_command)
-    cur.execute('commit')
+    insrt_table("google")
 
 def searchWikipedia(command):
     speak('What would you like to search on Wikipedia?')
@@ -122,15 +69,16 @@ def searchWikipedia(command):
     cur.execute(update_command)
     cur.execute('commit')
 
+def insrt_table(cmd):
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s",NULL);'%(datetime.datetime.now().timestamp(),cmd)
+    print(update_command)
+    cur.execute(update_command)
+    cur.execute('commit')
+
 def openYouTube():
     speak("Opening YouTube...")
     webbrowser.get(chrome_path).open("https://www.youtube.com")
     insrt_table("youtube")
-
-'''def openGoogle():
-    speak("Opening Google...")
-    webbrowser.get(chrome_path).open("https://www.google.com")
-    insrt_table("google")'''
 
 def tellJoke():
     joke = pyjokes.get_joke()
@@ -161,10 +109,6 @@ def getDate():
     print(f"Today's date is {today}")
     insrt_table("date")
 
-def startListening():
-    while True:
-        listenForCommand("loop")
-
 def showReport():
     speak('Choose report you would like to see from the following options')
     print('Choose report you would like to see from the following options:')
@@ -173,6 +117,7 @@ def showReport():
     print('2. FREQUENCY OF COMMANDS USED (TELL "COMMAND")')
     print('3. FREQUENCY OF TOPICS USED (TELL "TOPIC")')
     listenForCommand("report")
+
 
 def processReport(command):
     if any(ext in command for ext in ['full data','command','topic']):
@@ -206,8 +151,64 @@ def processReport(command):
         speak("Sorry, I didn't understand that.")
         print("Sorry, I didn't understand that.")
 
+def processCommand(command):
+    commands = {
+        "wikipedia": "searchWikipedia(command)",
+        "open youtube": "openYouTube()",
+        "open google": "openGoogle()"
+        'play music' : 'playMusic()'
+        'play song' : 'playMusic()'
+        'the time' : 'getTime()'
+        'date' : 'getDate()'
+        'report' : 'showReport()'
+        'joke' : 'tellJoke()'
+        'fact' : 'tellFact()'
+        'exit' : 'exit()'
+    }
 
-'''try:
+    for key in commands:
+        if (key in command):
+            eval(commands[key])
+            
+    if 'wikipedia' in command:
+        searchWikipedia(command)
+    elif 'open youtube' in command:
+        openYouTube()
+    elif 'open google' in command:
+        openGoogle()
+    elif 'play music' in command or 'play song' in command:
+        playMusic()
+    elif 'the time' in command:
+        getTime()
+    elif 'date' in command:
+        getDate()
+    elif 'report' in command:
+        showReport()
+    elif 'joke' in command:
+        tellJoke()
+    elif 'fact' in command:
+        tellFact()
+    elif 'exit' in command:
+        cur.close()
+        con.close()
+        exit()
+    elif 'thank you' in command:
+        speak("Welcome. Have a nice day. Bye")
+        print("Welcome. Have a nice day. Bye")
+        cur.close()
+        con.close()
+        exit()
+    else:
+        speak("Sorry, I didn't understand that.")
+
+processCommand("open google")
+
+
+def startListening():
+    while True:
+        listenForCommand("loop")
+
+try:
     #con=sql.connect(host='localhost',user='root',password='1234',database='SR_SEARCH_HISTORY')
     con=sql.connect(host='localhost',user='root',password='1234')
     print('Connected with mySQL database')
@@ -249,4 +250,5 @@ showreport_button.pack()
 
 # Run the GUI main loop
 wishMe()
-window.mainloop()'''
+window.mainloop()
+    
