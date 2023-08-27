@@ -1,0 +1,454 @@
+import mysql.connector as sql
+import pyttsx3
+import speech_recognition as sr
+import datetime
+import time
+import wikipedia
+import webbrowser
+import randfacts
+import pyjokes
+import pyowm
+import os
+import tkinter as tk
+import tkinter.scrolledtext as st
+from AppOpener import open, close
+from pathlib import Path
+from tkinter import Tk, Canvas, Button, PhotoImage
+from threading import Thread
+
+#This function is to construct the file from the assets path.
+def relative_to_assets(path: str):
+    return ASSETS_PATH / Path(path)
+
+#This function is the audio engine.
+def speak(audio):
+    engine.say(audio)
+    engine.runAndWait()
+
+#This function is to display the output in the Friday output window.
+def cons(message):
+    text_area.configure(state = 'normal')
+    text_area.insert(tk.INSERT, message+'\n')
+    text_area.see("end")
+    text_area.configure(state='disabled')
+
+#This function is to let the Voice Assistant know when it should listen to the user's commands.
+def startListening():
+    while True:
+        listenForCommand("loop")
+        cons('Please wait for "Listening..." prompt')
+        time.sleep(5)
+        #This method is used to give a break between 2 successive commands.
+
+#This function is used as the greeting based on time of day.
+def wishMe():
+    hour = datetime.datetime.now().hour
+    if 0 <= hour < 12:
+        speak("Good Morning!")
+    elif 12 <= hour < 18:
+        speak("Good Afternoon!")
+    else:
+        speak("Good Evening!")
+    speak("I am Friday, your assistant")
+    speak("How may I help you?")
+    
+#This function is used to listen to and recognize the command issued by the user.
+def listenForCommand(modl):
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        cons('Listening...')
+        speak("Listening")
+        r.pause_threshold = 1
+        audio = r.listen(source)
+    try:
+        cons("Recognizing...")
+        query = r.recognize_google(audio, language='en-in')
+        cons(f"User said: {query}")
+        if modl=="ref":
+            return query
+        #The 'ref' parameter is present in the wikipedia, google, app open, app close and weather queries.
+        elif modl=="report":
+            processReport(query.lower())
+            return
+        #The 'report' parameter is present in the report query.
+        else:
+            processCommand(query.lower())
+            return
+    except Exception as e:
+        cons("Say that again please...")
+        speak("Say that again please...")
+        listenForCommand("loop")
+
+#This function is used to do the appropriate task based on the given command.
+def processCommand(command):
+    if 'wikipedia' in command:
+        searchWikipedia(command)
+    elif 'open app' in command:
+        openApp()
+    elif 'close app' in command:
+        closeApp()
+    elif 'open youtube' in command:
+        openYouTube()
+    elif 'open google' in command:
+        openGoogle()
+    elif 'what is' in command:
+        openspGoogle()
+    elif 'weather' in command:
+        weather()
+    elif 'play music' in command or 'play song' in command:
+        playMusic()
+    elif 'the time' in command:
+        getTime()
+    elif 'date' in command:
+        getDate()
+    elif 'report' in command:
+        showReport()
+    elif 'joke' in command:
+        tellJoke()
+    elif 'fact' in command:
+        tellFact()
+    elif 'exit' in command:
+        cur.close()
+        con.close()
+        exit()
+    elif 'thank you' in command:
+        thankExit()
+    else:
+        speak("Sorry, I didn't understand that.")
+
+#This function is used to enter into the search history table what commands have been issued by the user.
+def insrt_table(cmd):
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s",NULL);'%(datetime.datetime.now().timestamp(),cmd)
+    cur.execute(update_command)
+    cur.execute('commit')
+
+#This function searches wikipedia for the required keyword and gives a two sentence answer from the wikipedia website.
+def searchWikipedia(command):
+    speak('What would you like to search on Wikipedia?')
+    query = listenForCommand("ref")
+    speak('Searching Wikipedia...')
+    results = wikipedia.summary(query, sentences=2)
+    speak("According to Wikipedia")
+    cons(results)
+    speak(results)
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s","%s");'%(datetime.datetime.now().timestamp(),command,query.lower())
+    cur.execute(update_command)
+    cur.execute('commit')
+
+#This function is to open the youtube website.
+def openYouTube():
+    speak("Opening YouTube...")
+    webbrowser.get(chrome_path).open("https://www.youtube.com")
+    insrt_table("youtube")
+
+#This function is used to open the google website.
+def openGoogle():
+    speak("Opening Google...")
+    webbrowser.get(chrome_path).open("https://www.google.com")
+    insrt_table("google")
+
+#This function is used to search a specific query in google.
+#It will directly open google and search for the required command.
+def openspGoogle(search):
+    search = search.replace(' ', '+')
+    webbrowser.get(chrome_path).open(
+        "https://www.google.co.in/search?q="+search)
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s","%s");'%(datetime.datetime.now().timestamp(),command,search.lower())
+    cur.execute(update_command)
+    cur.execute('commit')
+    
+#This function is used to open an app that has been installed into the computer.
+def openApp():
+    speak("Which app would you like to open")
+    search = listenForCommand("ref")
+    search = search.lower()
+    open(search, match_closest=True)
+    cons("Opening", search)
+    speak("Opening", search)
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s","%s");'%(datetime.datetime.now().timestamp(),command,search.lower())
+    cur.execute(update_command)
+    cur.execute('commit')
+
+#This function is used to close an already open app on the computer.
+def closeApp():
+    speak("Which app would you like to close")
+    search = listenForCommand("ref")
+    search = search.lower()
+    close(search, match_closest=True)
+    cons("Closing", search)
+    speak("Closing", search)
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s","%s");'%(datetime.datetime.now().timestamp(),command,query.lower())
+    cur.execute(update_command)
+    cur.execute('commit')
+
+#This function is used to randomly generate and tell a joke from the pyjokes module.
+def tellJoke():
+    joke = pyjokes.get_joke()
+    cons(joke)
+    speak(joke)
+    insrt_table("joke")
+
+#This function is used to randomly generate and tell a fact from the randfacts module.
+def tellFact():
+    fact1 = randfacts.get_fact()
+    cons(fact1)
+    speak(fact1)
+    insrt_table("fact")
+
+#This function is used to open the spotify website.
+def playMusic():
+    cons("Playing music...")
+    speak("Playing music...")
+    webbrowser.get(chrome_path).open("https://open.spotify.com")
+    insrt_table("music")
+
+#This function is used to display the current time.
+def getTime():
+    strTime = datetime.datetime.now().strftime("%H:%M:%S")
+    cons(f"The time is {strTime}")
+    speak(f"The time is {strTime}")
+    insrt_table("time")
+
+#This function is used to display the current date.
+def getDate():
+    today = datetime.date.today()
+    cons(f"Today's date is {today}")
+    speak(f"Today's date is {today}")
+    insrt_table("date")
+
+#This function is used to exit the Friday interface when the user says 'Thank You'.
+def thankExit():
+    cons("Welcome. Have a nice day. Bye")
+    speak("Welcome. Have a nice day. Bye")
+    cur.close()
+    con.close()
+    exit()
+
+#This function is used to display the ttemperature and weather of the required city.
+def weather():
+    owm = pyowm.OWM('6cf345bdb3238dcc59d4d0878b3ad803') 
+
+    while True:
+        # Ask the user for the city
+        speak("Which city's weather do you want to know?")
+        city = listenForCommand("ref")
+
+        try:
+            mgr = owm.weather_manager()
+            observation=mgr.weather_at_place(city)
+            weather_data = observation.weather
+            temperature = weather_data.temperature('celsius')
+            status = weather_data.detailed_status
+
+            # cons and speak the weather information
+            cons(f"Temperature in {city} is {temperature['temp']} degrees Celsius.")
+            cons(f"The weather in {city} is {status}.")
+            speak(f"Temperature in {city} is {temperature['temp']} degrees Celsius.")
+            speak(f"The weather in {city} is {status}.")
+            insrt_table("Weather")
+            return  # Exit the loop since weather information was found
+
+        except pyowm.exceptions.not_found_error.NotFoundError:
+            # Retry or exit
+            speak("Weather information not found for that city. Would you like to try another city?")
+            retry = listenForCommand("ref")
+            if "no" in retry.lower():
+                speak("Alright, no weather information retrieved.")
+                break  # Exit the loop if the user doesn't want to try again
+
+    update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"%s","%s");'%(datetime.datetime.now().timestamp(),command,city.lower())
+    cur.execute(update_command)
+    cur.execute('commit')  
+
+#This function is used to show the options present to see a report of the history of the use of Friday.
+def showReport():
+    cons('Choose report you would like to see from the following options')
+    speak('Choose report you would like to see from the following options:')
+    cons('1. FULL DATA (TELL "FULL DATA")')
+    cons('2. FREQUENCY OF COMMANDS USED (TELL "COMMAND")')
+    cons('3. FREQUENCY OF TOPICS USED (TELL "TOPIC")')
+    speak('full data, command frequency, topic frequency')
+    listenForCommand("report")
+
+#This function will display the required report based on the option chosen.
+def processReport(command):
+    if any(ext in command for ext in ['full data','command','topic']):
+        update_command='INSERT INTO COMMAND_CENTRE VALUES(%d,"report","%s");'%(datetime.datetime.now().timestamp(),command)
+        cur.execute(update_command)
+        cur.execute('commit')
+
+    #If the user says 'full data', the date-time, commands and topics will be displayed.
+    if 'full data' in command:
+        cur.execute('SELECT * FROM COMMAND_CENTRE;')
+        cur_details=cur.fetchall()
+        tim="Time".center(30)
+        cmd="Command".center(30)
+        subc="Subcommand".center(40)
+        cons(tim+cmd+subc)
+        for i in cur_details:
+            tim=datetime.datetime.fromtimestamp(i[0]).strftime('%d/%m/%Y %H:%M:%S').ljust(30)
+            cmd=i[1].ljust(30)
+            if i[2]=='NULL' or i[2] is None:
+                cons(tim+cmd)
+            else:
+                subc=i[2].ljust(30)
+                cons(tim+cmd+subc)
+    #If the user says 'command', the commands searched and their frequency will be displayed.
+    elif 'command' in command:
+        cur.execute('SELECT COMMAND_NAME, COUNT(*) FROM COMMAND_CENTRE GROUP BY COMMAND_NAME;')
+        cur_details=cur.fetchall()
+        cmd="Command".center(30)
+        freq="Frequency".center(10)
+        cons(cmd+freq)
+        for i in cur_details:
+            cmd=i[0].ljust(30)
+            cons(cmd+str(i[1]))
+    #If the user says 'topic', the wikipedia topics/ google searches and apps opened or closed and their frequency will be displayed.
+    elif 'topic' in command:
+        cur.execute('SELECT SUBCOMMAND, COUNT(*) FROM COMMAND_CENTRE WHERE COMMAND_NAME="WIKIPEDIA" GROUP BY SUBCOMMAND;')
+        cur_details=cur.fetchall()
+        subc="Subcommand".center(30)
+        freq="Frequency".center(10)
+        cons(subc+freq)
+        for i in cur_details:
+            subc=i[0].ljust(30)
+            cons(subc+str(i[1]))
+    else:
+        cons("Sorry, I didn't understand that.")
+        speak("Sorry, I didn't understand that.")
+
+
+# Main function starts here
+
+chrome_path = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s'
+
+engine = pyttsx3.init('sapi5')
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
+
+
+OUTPUT_PATH = Path(__file__).parent
+ASSETS_PATH = OUTPUT_PATH / Path(os.getcwd())
+     
+#TK interface
+window = Tk()
+        
+window.geometry("1500x750")
+window.configure(bg="#404040")
+window.title("Friday Assistant")
+
+canvas = Canvas(
+    window,
+    bg = "#438DC4",
+    height = 750,
+    width = 1500,
+    bd = 0,
+    highlightthickness = 0,
+    relief = "ridge"
+)
+
+canvas.pack(anchor=tk.CENTER, expand=True)
+
+'''canvas.place(x=0, y=0)
+image_image_1 = PhotoImage(
+    file=relative_to_assets("image_1.png"))
+image_1 = canvas.create_image(
+    300.0,
+    200.0,
+    image=image_image_1
+)
+
+text_image = PhotoImage(
+    file=relative_to_assets("entry_1.png"))
+entry_bg_1 = canvas.create_image(
+    299.5,
+    332.5,
+    image=text_image
+)'''
+
+text_area = st.ScrolledText(
+    bd=0,
+    bg="#292929",
+    fg="#ffffff",
+    highlightthickness=0,
+    font=("Times New Roman", 12)
+)
+
+text_area.place(
+    x=40.0,
+    y=272.0,
+    width=1450.0,
+    height=476.0
+)
+
+text_area.configure(state = 'disabled')
+
+speak_image = PhotoImage(
+    file=relative_to_assets("button_2.png"))
+speak_button = Button(
+    image=speak_image,
+    borderwidth=0,
+    highlightthickness=0,
+    command=lambda: Thread(target=startListening).start(),
+    relief="flat"
+)
+speak_button.place(
+    x=650.0,
+    y=90.0,
+    width=130.0,
+    height=130.0
+)
+
+'''report_image = PhotoImage(
+    file=relative_to_assets("button_1.png"))
+report_button = Button(
+    image=report_image,
+    borderwidth=0,
+    highlightthickness=0,
+    command=showReport(),
+    relief="flat"
+)
+report_button.place(
+    x=563.0,
+    y=9.0,
+    width=25.0,
+    height=25.0
+)'''
+
+window.resizable(False, False)
+
+ #connecting mySQL
+try:
+    con = sql.connect(
+        host='localhost', user='root', password='1234')
+    cons('Connected with mySQL')
+except Exception as e:
+    cons('Database not connected.... Exiting')
+    cons('Error:', e)
+    exit()
+    #If the program doesn't connect with mySQL, it will automatically exit.
+    
+cur = con.cursor()
+
+try:
+    cur.execute('USE SR_SEARCH_HISTORY;')
+except:
+    cur.execute('CREATE DATABASE SR_SEARCH_HISTORY;')
+    cur.execute('USE SR_SEARCH_HISTORY;')
+    #If the database 'SR_SEARCH_HISTORY' doesn't exist, the program will create and use the database.
+
+try:
+    cur.execute('SHOW TABLES;')
+    data = cur.fetchall()
+    if ('command_centre',) not in data:
+        cur.execute(
+            "CREATE TABLE COMMAND_CENTRE(EXE_TIME BIGINT PRIMARY KEY, COMMAND_NAME VARCHAR(30), SUBCOMMAND VARCHAR(30));")
+            #If the table 'COMMAND_CENTRE,doesn't exist, the program will create the table and use it.
+except Exception as e:
+    cons("Error", e)
+
+
+# Run the GUI main loop
+wishMe()
+window.mainloop()
+    
